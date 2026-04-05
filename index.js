@@ -1,13 +1,6 @@
 const express = require('express');
-const twilio = require('twilio');
-
 const app = express();
 app.use(express.json());
-
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
 
 // Health check - Railway needs this
 app.get('/', (req, res) => {
@@ -17,6 +10,12 @@ app.get('/', (req, res) => {
 // Vapi calls this to send SMS reminder
 app.post('/send-reminder', async (req, res) => {
   try {
+    const twilio = require('twilio');
+    const client = twilio(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+
     const { patientPhone, patientName, appointmentTime } = req.body;
 
     await client.messages.create({
@@ -37,6 +36,12 @@ app.post('/send-reminder', async (req, res) => {
 // Vapi calls this when appointment is booked
 app.post('/appointment-booked', async (req, res) => {
   try {
+    const twilio = require('twilio');
+    const client = twilio(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+
     const { patientPhone, patientName, appointmentTime, dentist } = req.body;
 
     await client.messages.create({
