@@ -13,14 +13,15 @@ app.post('/send-reminder', async (req, res) => {
       process.env.TWILIO_ACCOUNT_SID,
       process.env.TWILIO_AUTH_TOKEN
     );
-    const { patientPhone, patientName, appointmentTime } = req.body;
+    const { patientPhone, patientName, appointmentDateTime, doctorName } = req.body;
     await client.messages.create({
-      body: `Hi ${patientName}, this is City Square Dental confirming your appointment on ${appointmentTime}. Call us at 604-876-4537 with any questions.`,
+      body: `Hi ${patientName}, your appointment with ${doctorName} at City Square Dental is confirmed for ${appointmentDateTime}. Call 604-876-4537 with questions.`,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: patientPhone
     });
-    res.json({ success: true, message: 'SMS sent' });
+    res.json({ success: true });
   } catch (error) {
+    console.error('SMS error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -32,14 +33,15 @@ app.post('/appointment-booked', async (req, res) => {
       process.env.TWILIO_ACCOUNT_SID,
       process.env.TWILIO_AUTH_TOKEN
     );
-    const { patientPhone, patientName, appointmentTime, dentist } = req.body;
+    const { patientPhone, patientName, appointmentDateTime, doctorName } = req.body;
     await client.messages.create({
-      body: `Confirmed! Hi ${patientName}, you are booked with ${dentist} at City Square Dental on ${appointmentTime}. Address: 555 W 12th Ave #5, Vancouver. See you soon!`,
+      body: `Confirmed! Hi ${patientName}, you are booked with ${doctorName} at City Square Dental on ${appointmentDateTime}. Address: 555 W 12th Ave #5, Vancouver. See you soon!`,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: patientPhone
     });
     res.json({ success: true });
   } catch (error) {
+    console.error('SMS error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
