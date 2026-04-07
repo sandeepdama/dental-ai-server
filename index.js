@@ -1,52 +1,67 @@
-const express = require('express');
-const app = express();
-app.use(express.json());
+const express = require("express");
+const twilio = require("twilio");
 
-app.get('/', (req, res) => {
-  res.send('Dental AI Server is running!');
+const app = express();
+
+// Middleware (VERY IMPORTANT)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Twilio client
+const client = twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+);
+
+// Health check (optional but useful)
+app.get("/", (req, res) => {
+    res.send("Server is running");
 });
 
-app.post('/appointment-booked', async (req, res) => {
-  try {
-    console.log('FULL BODY:', JSON.stringify(req.body));
+// MAIN ROUTE (Vapi will call this)
+app.post("/appointment-booked", async (req, res) => {
+    console.log("RAW BODY:", req.body);
 
-    const patientPhone = req.body.patientPhone || req.body.phone || req.body.phoneNumber;
-    const patientName = req.body.patientName || req.body.name || 'Patient';
-    const appointmentDateTime = req.body.appointmentDateTime || req.body.appointmentTime || 'your scheduled time';
-    const doctorName = req.body.doctorName || req.body.doctor || 'your doctor';
+    let data = req.body;
 
-    if (!patientPhone) {
-      console.error('NO PHONE NUMBER IN REQUEST');
-      return res.json({ result: 'No phone number' });
+    // Handle Vapi sending arguments as string
+    if (typeof data.arguments === "string") {
+        try {
+            data = JSON.parse(data.arguments);
+        } catch (err) {
+            console.error("JSON parse error:", err);
+            return res.status(400).send("Invalid JSON");
+        }
     }
 
-    let cleanPhone = patientPhone.toString().replace(/[\s\-\(\)]/g, '');
-    if (!cleanPhone.startsWith('+')) cleanPhone = '+' + cleanPhone;
+    const phone = data.patientPhone;
+    const name = data.patientName;
+    const doctor = data.doctorName;
+    const time = data.appointmentDateTime;
 
-    console.log('Sending SMS to:', cleanPhone);
+    if (!phone) {
+        console.log("NO PHONE NUMBER IN REQUEST");
+        return res.status(400).send("Missing phone number");
+    }
 
-    const twilio = require('twilio');
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    try {
+        const message = await client.messages.create({
+            body: `Hi ${name}, your appointment with ${doctor} is confirmed for ${time}.`,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: phone
+        });
 
-    await client.messages.create({
-      body: `Confirmed! Hi ${patientName}, you are booked with ${doctorName} at City Square Dental on ${appointmentDateTime}. Address: 555 W 12th Ave #5, Vancouver. See you soon!`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: cleanPhone
-    });
+        console.log("SMS SENT:", message.sid);
 
-    console.log('SMS SENT SUCCESSFULLY to:', cleanPhone);
-    res.json({ result: 'SMS sent successfully' });
-
-  } catch (error) {
-    console.error('ERROR:', error.message);
-    res.status(500).json({ result: error.message });
-  }
+        res.send("SMS sent successfully");
+    } catch (error) {
+        console.error("SMS ERROR:", error);
+        res.status(500).send("Failed to send SMS");
+    }
 });
 
-app.post('/send-reminder', async (req, res) => {
-  req.url = '/appointment-booked';
-  app._router.handle(req, res);
+// Start server
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
